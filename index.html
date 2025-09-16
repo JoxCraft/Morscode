@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Morse‑Trainer (DE)</title>
+  <meta name="description" content="Lerne Morsecode mit zufälligen häufigen deutschen Wörtern einer gewünschten Länge."/>
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#121a2a; --ink:#e8eef7; --muted:#a5b3c2; --line:#223147;
+      --accent:#6aa9ff; --ok:#7ee18a; --warn:#ffd166; --err:#ff7b7b;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    a{color:var(--accent)}
+    .wrap{max-width:980px;margin:0 auto;padding:24px}
+    header{display:flex;gap:16px;align-items:center;justify-content:space-between;margin-bottom:16px}
+    h1{font-weight:700;font-size:clamp(20px,2.6vw,28px);margin:0}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:18px}
+    .grid{display:grid;gap:16px}
+    @media (min-width:900px){.grid{grid-template-columns:1.2fr 1fr}}
+    label{display:block;font-size:14px;color:var(--muted);margin-bottom:6px}
+    input[type="number"], input[type="text"], input[type="file"], select{width:100%;padding:12px 14px;background:#0c1524;color:var(--ink);border:1px solid var(--line);border-radius:12px}
+    input[type="range"]{width:100%}
+    button{appearance:none;border:1px solid var(--line);background:#15233a;color:var(--ink);padding:10px 14px;border-radius:12px;cursor:pointer}
+    button:hover{background:#19304f}
+    button.primary{background:var(--accent);border-color:transparent;color:#08101e}
+    button.ghost{background:transparent}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:999px;background:#0c1524}
+    .muted{color:var(--muted)}
+    .hint{font-size:13px;color:var(--muted)}
+    .out{min-height:26px}
+    .ok{color:var(--ok)}.err{color:var(--err)}.warn{color:var(--warn)}
+    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;background:#0c1524;border:1px solid var(--line);padding:2px 6px;border-radius:6px}
+    .mono{font-family:ui-monospace,Consolas,monaco,monospace}
+    .small{font-size:12px;color:var(--muted)}
+    .solution{font-weight:700;letter-spacing:.5px}
+    .sep{height:1px;background:var(--line);margin:8px 0}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>🔊 Morse‑Trainer (Deutsch)</h1>
+      <div class="row">
+        <button id="btn-play" class="primary">▶ Wort abspielen</button>
+        <button id="btn-new">🎲 Neues Wort</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <div class="row" style="align-items:flex-end">
+          <div style="flex:1 1 160px">
+            <label for="len">Gewünschte Wortlänge</label>
+            <input id="len" type="number" min="1" max="20" value="4" />
+            <div class="hint">Bei Länge <span class="kbd">1</span> wird ein zufälliger Buchstabe verwendet.</div>
+          </div>
+          <div class="pill">
+            <span class="small">Status:</span>
+            <span id="status" class="small">bereit</span>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <div class="row">
+          <div style="flex:1 1 260px">
+            <label for="guess">Deine Eingabe</label>
+            <input id="guess" type="text" placeholder="gehörtes Wort eingeben… (Groß/Klein egal)"/>
+          </div>
+          <div>
+            <label>&nbsp;</label>
+            <button id="btn-check">Prüfen</button>
+          </div>
+          <div>
+            <label>&nbsp;</label>
+            <button id="btn-solution" class="ghost">Lösung zeigen</button>
+          </div>
+        </div>
+
+        <p id="feedback" class="out"></p>
+        <p class="small">Beliebig viele Versuche und Replays. ⌨️ Tipp: <span class="kbd">Enter</span> = Prüfen, <span class="kbd">Space</span> = Abspielen.</p>
+      </section>
+
+      <aside class="card">
+        <div class="row">
+          <div style="flex:1 1 50%">
+            <label for="wpm">Geschwindigkeit (WPM geschätzt)</label>
+            <input id="wpm" type="range" min="5" max="35" value="18" />
+            <div class="hint"><span id="wpm-val">18</span> WPM ≈ Punktdauer <span id="dot-ms">67</span> ms</div>
+          </div>
+          <div style="flex:1 1 50%">
+            <label for="freq">Tonhöhe (Hz)</label>
+            <input id="freq" type="range" min="200" max="1200" value="600" />
+            <div class="hint"><span id="freq-val">600</span> Hz Sinus</div>
+          </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <div>
+          <label for="upload">Wortliste laden (optional)</label>
+          <input id="upload" type="file" accept=".txt,.list" />
+          <p class="small">Format: eine Zeile pro Wort, UTF‑8. Umlaute erlaubt. 
+            Standard: eingebaute kleine Demo‑Liste + optional <span class="mono">words.txt</span> aus dem Repo.
+          </p>
+          <p class="small">Umlaut‑Regeln: ä→AE, ö→OE, ü→UE, ß→SS beim Abgleich & Morse‑Audio.</p>
+        </div>
+      </aside>
+    </div>
+
+    <section class="card" style="margin-top:16px">
+      <details>
+        <summary>Hilfe & Technik</summary>
+        <ul>
+          <li>Reines Frontend, läuft auf GitHub Pages / Cloudflare Pages.</li>
+          <li>Morse‑Audio wird im Browser mit der Web Audio API erzeugt – keine Audiodateien nötig.</li>
+          <li>Timing (Standard): Punkt = 1 Einheit, Strich = 3, Abstand: innerhalb Buchstabe = 1, zwischen Buchstaben = 3, zwischen Wörtern = 7.</li>
+          <li>Unterstützte Zeichen: A–Z (Umlaute werden expandiert), Bindestriche/Leerzeichen werden ignoriert.</li>
+        </ul>
+        <p class="small">Quelltext ist in dieser Datei eingebettet – einfach ins Repo legen.</p>
+      </details>
+    </section>
+  </div>
+
+<script>
+// ======= Morse-Logik =======
+const MORSE = {
+  A: ".-",   B: "-...", C: "-.-.", D: "-..",  E: ".",    F: "..-.",
+  G: "--.",  H: "....", I: "..",   J: ".---", K: "-.-",  L: ".-..",
+  M: "--",   N: "-.",   O: "---",  P: ".--.", Q: "--.-", R: "..",
+  S: "...",  T: "-",    U: "..-",  V: "...-", W: ".--",  X: "-..-",
+  Y: "-.--", Z: "--.."
+};
+
+function normalizeGermanWord(w){
+  return w
+    .toUpperCase()
+    .replaceAll("Ä","AE").replaceAll("Ö","OE").replaceAll("Ü","UE")
+    .replaceAll("ä","AE").replaceAll("ö","OE").replaceAll("ü","UE")
+    .replaceAll("ß","SS")
+    .replace(/[^A-Z]/g, ""); // nur A-Z behalten
+}
+
+function wordToMorse(word){
+  const chars = normalizeGermanWord(word).split("");
+  return chars.map(ch => MORSE[ch] || "").filter(Boolean);
+}
+
+// ======= Audio =======
+const audio = new (window.AudioContext || window.webkitAudioContext)();
+let currentPlay = null; // AbortController-ähnlich
+
+function wpmToDotMs(wpm){
+  // Näherung: PARIS‑WPM → dot ≈ 1200 / WPM ms
+  return Math.round(1200 / wpm);
+}
+
+async function playMorseForWord(word, {freq=600, wpm=18}={}){
+  if(!word) return;
+  // Stop evtl. laufende Sequenz
+  if(currentPlay && currentPlay.stop) currentPlay.stop();
+  let stopped = false;
+  currentPlay = { stop: ()=>{ stopped = true; } };
+
+  const dot = wpmToDotMs(wpm);
+  const dash = 3*dot;
+  const intra = dot; // zwischen Zeichen innerhalb eines Buchstabens
+  const inter = 3*dot; // zwischen Buchstaben
+
+  const seq = wordToMorse(word); // [".-", "-..", ...] pro Buchstabe
+  const letters = seq.map(s => s.split(""));
+
+  const startOsc = () => {
+    const osc = audio.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    const gain = audio.createGain();
+    gain.gain.value = 0.0001; // leise starten
+    osc.connect(gain).connect(audio.destination);
+    osc.start();
+    // kurze Ein-/Ausblendung gegen Klicks
+    const clickFade = 0.01;
+    return {
+      on: (ms)=> new Promise(res=>{
+        const now = audio.currentTime;
+        gain.gain.cancelScheduledValues(now);
+        gain.gain.setTargetAtTime(1.0, now, clickFade);
+        setTimeout(()=>{
+          gain.gain.setTargetAtTime(0.0001, audio.currentTime, clickFade);
+          setTimeout(res, ms);
+        }, ms);
+      }),
+      stop: ()=>{ try{ osc.stop(); }catch(e){} }
+    };
+  };
+
+  const osc = startOsc();
+  const sleep = (ms)=> new Promise(r=> setTimeout(r, ms));
+
+  try{
+    for(let i=0;i<letters.length;i++){
+      const parts = letters[i];
+      for(let j=0;j<parts.length;j++){
+        if(stopped) throw new Error("stopped");
+        const sym = parts[j];
+        const dur = sym === "." ? dot : dash;
+        await osc.on(dur);
+        if(j < parts.length-1) await sleep(intra);
+      }
+      if(i < letters.length-1) await sleep(inter);
+    }
+  } catch(e){ /* gestoppt */ }
+  finally { osc.stop(); }
+}
+
+// ======= Wortlisten-Handling =======
+let WORDS_BY_LEN = new Map();
+
+// Kleine eingebaute Demo-Liste (häufige deutsche Wörter verschiedener Längen)
+const DEMO_WORDS = [
+  "der","die","das","ist","und","ein","mit","wie","auf","zum","den","von","man","wir","ich","auch","nur","mal","was","sind",
+  "haus","hand","zeit","jahr","raum","bild","wort","tage","dank","ruhe","wald","luft","stadt","moos","moor","idee","haar",
+  "spielen","denken","fragen","machen","sagen","gehen","sehen","laufen","lernen","wohnen",
+  "deutsch","kultur","musik","fragen","antwort","arbeiten","studium","berlin","zukunft",
+  "möglich","einfach","schnell","langsam","hell","dunkel","kurz","lange"
+];
+
+function indexWords(list){
+  WORDS_BY_LEN = new Map();
+  for(const raw of list){
+    const w = raw.trim();
+    if(!w) continue;
+    const clean = w.replace(/\s+/g,"");
+    const norm = normalizeGermanWord(clean);
+    if(!norm) continue;
+    const L = norm.length;
+    if(!WORDS_BY_LEN.has(L)) WORDS_BY_LEN.set(L, []);
+    WORDS_BY_LEN.get(L).push(w); // Originalwort für Anzeige behalten
+  }
+}
+
+function chooseWordOfLength(L){
+  if(L === 1){
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    return letters[Math.floor(Math.random()*letters.length)];
+  }
+  const arr = WORDS_BY_LEN.get(L) || [];
+  if(arr.length === 0) return null;
+  return arr[Math.floor(Math.random()*arr.length)];
+}
+
+async function tryLoadRepoWords(){
+  try{
+    const resp = await fetch('words.txt');
+    if(!resp.ok) return false;
+    const text = await resp.text();
+    const lines = text.split(/\r?\n/);
+    indexWords([...DEMO_WORDS, ...lines]);
+    return true;
+  } catch(e){ return false; }
+}
+
+// ======= UI-Logic =======
+const el = {
+  len: document.getElementById('len'),
+  btnPlay: document.getElementById('btn-play'),
+  btnNew: document.getElementById('btn-new'),
+  btnCheck: document.getElementById('btn-check'),
+  btnSolution: document.getElementById('btn-solution'),
+  guess: document.getElementById('guess'),
+  feedback: document.getElementById('feedback'),
+  status: document.getElementById('status'),
+  wpm: document.getElementById('wpm'),
+  wpmVal: document.getElementById('wpm-val'),
+  dotMs: document.getElementById('dot-ms'),
+  freq: document.getElementById('freq'),
+  freqVal: document.getElementById('freq-val'),
+  upload: document.getElementById('upload'),
+};
+
+let currentWord = '';
+let attempts = 0;
+
+function setStatus(msg){ el.status.textContent = msg; }
+function setFeedback(html, cls=''){
+  el.feedback.className = 'out ' + cls;
+  el.feedback.innerHTML = html;
+}
+
+function newWord(){
+  const L = Math.max(1, Math.min(20, parseInt(el.len.value || '1',10)));
+  const w = chooseWordOfLength(L);
+  if(!w){
+    currentWord = '';
+    setStatus('keine Wörter der Länge ' + L + ' gefunden');
+    setFeedback('Lade eine Wortliste (rechts) oder lege <span class="mono">words.txt</span> ins Repo.', 'warn');
+    return;
+  }
+  currentWord = w;
+  attempts = 0;
+  el.guess.value = '';
+  setStatus('Wort der Länge ' + L + ' bereit');
+  setFeedback('Neues Wort erzeugt. Spiele es ab und gib deine Vermutung ein.');
+}
+
+function checkGuess(){
+  if(!currentWord){ setFeedback('Kein Wort aktiv.', 'warn'); return; }
+  const user = normalizeGermanWord(el.guess.value || '');
+  const target = normalizeGermanWord(currentWord);
+  attempts++;
+  if(!user){ setFeedback('Bitte gib zuerst etwas ein.', 'warn'); return; }
+  if(user === target){
+    setFeedback('✔️ Richtig! <span class="solution">' + currentWord + '</span> — Versuche: ' + attempts, 'ok');
+  } else {
+    setFeedback('❌ Nicht ganz. Versuch #' + attempts + '. Tipp: Nochmal abspielen?');
+  }
+}
+
+function showSolution(){
+  if(!currentWord){ setFeedback('Kein Wort aktiv.', 'warn'); return; }
+  setFeedback('🔎 Lösung: <span class="solution">' + currentWord + '</span>');
+}
+
+async function playCurrent(){
+  if(!currentWord){ setFeedback('Kein Wort aktiv.', 'warn'); return; }
+  const wpm = parseInt(el.wpm.value, 10);
+  const freq = parseInt(el.freq.value, 10);
+  setStatus('spielt …');
+  await playMorseForWord(currentWord, {wpm, freq});
+  setStatus('bereit');
+}
+
+// Event wiring
+el.btnNew.addEventListener('click', newWord);
+el.btnCheck.addEventListener('click', checkGuess);
+el.btnSolution.addEventListener('click', showSolution);
+el.btnPlay.addEventListener('click', playCurrent);
+el.guess.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter') checkGuess();
+});
+window.addEventListener('keydown', (e)=>{
+  if(e.key === ' ') { e.preventDefault(); playCurrent(); }
+});
+
+el.wpm.addEventListener('input', ()=>{
+  el.wpmVal.textContent = el.wpm.value;
+  el.dotMs.textContent = wpmToDotMs(parseInt(el.wpm.value,10));
+});
+el.freq.addEventListener('input', ()=>{ el.freqVal.textContent = el.freq.value; });
+
+el.upload.addEventListener('change', async (e)=>{
+  const file = e.target.files?.[0];
+  if(!file) return;
+  const text = await file.text();
+  const lines = text.split(/\r?\n/);
+  indexWords([...DEMO_WORDS, ...lines]);
+  setFeedback('Wortliste geladen: ' + lines.filter(Boolean).length + ' Einträge.');
+});
+
+// Init
+(async function init(){
+  indexWords(DEMO_WORDS);
+  await tryLoadRepoWords();
+  el.wpm.dispatchEvent(new Event('input'));
+  el.freq.dispatchEvent(new Event('input'));
+  newWord();
+})();
+</script>
+</body>
+</html>
