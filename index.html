@@ -166,7 +166,7 @@ async function playMorseForWord(word, {freq=600, wpm=18}={}){
   currentPlay = { stop: ()=>{ stopped = true; } };
 
   const dot = wpmToDotMs(wpm);
-  const wordgap = 7 * dot;
+  const wordgap = 14 * dot;
   const dash = 3*dot;
   const intra = dot; // zwischen Zeichen innerhalb eines Buchstabens
   const inter = 3*dot; // zwischen Buchstaben
