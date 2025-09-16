@@ -81,7 +81,7 @@
         </div>
 
         <p id="feedback" class="out"></p>
-        <p class="small">Beliebig viele Versuche und Replays. ⌨️ Tipp: <span class="kbd">Enter</span> = Prüfen, <span class="kbd">Space</span> = Abspielen.</p>
+        <p class="small">Beliebig viele Versuche und Replays. ⌨️ Tipp: <span class="kbd">Enter</span> = Prüfen, <span class="kbd">Space</span> = Abspielen, <span class="kbd">ESC</span> = Neues Wort.</p>
       </section>
 
       <aside class="card">
@@ -296,6 +296,7 @@ function setFeedback(html, cls=''){
 }
 
 function newWord(){
+  if (currentPlay && currentPlay.stop) currentPlay.stop();
   const L = Math.max(1, Math.min(20, parseInt(el.len.value || '1',10)));
   const w = chooseWordOfLength(L);
   if(!w){
@@ -349,6 +350,14 @@ el.guess.addEventListener('keydown', (e)=>{
 window.addEventListener('keydown', (e)=>{
   if(e.key === ' ') { e.preventDefault(); playCurrent(); }
 });
+window.addEventListener('keydown', (e)=>{
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    newWord();
+    el.guess && el.guess.focus();
+  }
+});
+
 
 el.wpm.addEventListener('input', ()=>{
   el.wpmVal.textContent = el.wpm.value;
