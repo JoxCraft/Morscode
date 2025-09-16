@@ -166,6 +166,7 @@ async function playMorseForWord(word, {freq=600, wpm=18}={}){
   currentPlay = { stop: ()=>{ stopped = true; } };
 
   const dot = wpmToDotMs(wpm);
+  const wordgap = 7 * dot;
   const dash = 3*dot;
   const intra = dot; // zwischen Zeichen innerhalb eines Buchstabens
   const inter = 3*dot; // zwischen Buchstaben
@@ -199,22 +200,26 @@ async function playMorseForWord(word, {freq=600, wpm=18}={}){
 
   const osc = startOsc();
   const sleep = (ms)=> new Promise(r=> setTimeout(r, ms));
-
-  try{
-    for(let i=0;i<letters.length;i++){
-      const parts = letters[i];
-      for(let j=0;j<parts.length;j++){
-        if(stopped) throw new Error("stopped");
-        const sym = parts[j];
-        const dur = sym === "." ? dot : dash;
-        await osc.on(dur);
-        if(j < parts.length-1) await sleep(intra);
-      }
-      if(i < letters.length-1) await sleep(inter);
+try{
+  for (let i = 0; i < letters.length; i++) {
+    const parts = letters[i];        // Zeichen (.-) eines Buchstabens
+    for (let j = 0; j < parts.length; j++) {
+      if (stopped) throw new Error("stopped");
+      const sym = parts[j];
+      const dur = sym === "." ? dot : dash;
+      await osc.on(dur);
+      if (j < parts.length - 1) await sleep(intra); // Abstand innerhalb Buchstaben
     }
-  } catch(e){ /* gestoppt */ }
-  finally { osc.stop(); }
-}
+    // Abstand nach Buchstaben bzw. am Wortende
+    if (i < letters.length - 1) {
+      await sleep(inter);            // zwischen Buchstaben
+    } else {
+      await sleep(wordgap);          // am Ende des (ganzen) Wortes
+    }
+  }
+} catch(e){ /* gestoppt */ }
+finally { osc.stop(); }
+
 
 // ======= Wortlisten-Handling =======
 let WORDS_BY_LEN = new Map();
